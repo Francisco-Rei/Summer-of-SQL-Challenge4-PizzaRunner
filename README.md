@@ -175,3 +175,71 @@ GROUP BY DAYNAME(order_time)
 | Wed         | 5      |
 | Fri         | 1      |
 | Sat         | 5      |
+
+
+
+### Runner and Customer Experience
+
+1. How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+````sql
+SELECT 
+    DATE_TRUNC('week', registration_date) + 4 AS start_of_week , --truncates the date to the star of the ISO Week.+ 4 is adding 4 days to that Monday, which moves the start to Friday.
+    COUNT(DISTINCT runner_id) AS count_of_runners,
+FROM runners
+GROUP BY DATE_TRUNC('week', registration_date) + 4
+ORDER BY DATE_TRUNC('week', registration_date) + 4;
+````
+
+2. What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+````sql
+SELECT
+    runner_id,
+    AVG(TIMEDIFF(MINUTE, order_time, pickup_time)) AS avg_minutes_to_pickup -- Find the avg time difference between order time and pickup
+FROM runner_orders AS ro
+INNER JOIN customer_orders AS cu ON cu.order_id = ro.order_id
+WHERE pickup_time <> 'null' -- removes nulls from the data as these do not count as orders delivered
+GROUP BY runner_id;
+````
+3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
+````sql
+WITH cte_pizzas AS (
+SELECT
+    cu.order_id,
+    COUNT(cu.pizza_id) as no_pizzas_per_order,
+    MAX(TIMEDIFF(MINUTE, order_time, pickup_time)) AS time_to_prepare -- Find the difference between order time and pickup to understand how long it took to prepare the pizzas per order
+FROM runner_orders AS ro
+INNER JOIN customer_orders AS cu ON cu.order_id = ro.order_id
+WHERE pickup_time <> 'null' -- removes nulls from the data as these do not count as orders delivered
+GROUP BY cu.order_id
+)
+SELECT 
+    no_pizzas_per_order, 
+    AVG(time_to_prepare) AS avg_time_to_prepare  -- based on the aggregation of number of pizzas delivered per order, what was the average time ti prepare them
+FROM cte_pizzas
+GROUP BY no_pizzas_per_order;
+````
+
+4. What was the average distance travelled for each customer?
+````sql
+SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
+FROM customer_orders
+GROUP BY DAYNAME(order_time)
+````
+5. What was the difference between the longest and shortest delivery times for all orders?
+````sql
+SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
+FROM customer_orders
+GROUP BY DAYNAME(order_time)
+````
+6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
+````sql
+SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
+FROM customer_orders
+GROUP BY DAYNAME(order_time)
+````
+7. What is the successful delivery percentage for each runner?
+````sql
+SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
+FROM customer_orders
+GROUP BY DAYNAME(order_time)
+````
