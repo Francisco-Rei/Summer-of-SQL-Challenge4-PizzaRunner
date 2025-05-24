@@ -189,6 +189,12 @@ FROM runners
 GROUP BY DATE_TRUNC('week', registration_date) + 4
 ORDER BY DATE_TRUNC('week', registration_date) + 4;
 ````
+| REGISTRATION_DATE | START_OF_WEEK |
+|-------------------|---------------|
+| 2021-01-01        | 2021-01-01    |
+| 2021-01-03        | 2021-01-01    |
+| 2021-01-08        | 2021-01-08    |
+| 2021-01-15        | 2021-01-15    |
 
 2. What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
 ````sql
@@ -200,6 +206,13 @@ INNER JOIN customer_orders AS cu ON cu.order_id = ro.order_id
 WHERE pickup_time <> 'null' -- removes nulls from the data as these do not count as orders delivered
 GROUP BY runner_id;
 ````
+
+| RUNNER_ID | AVG_MINUTES_TO_PICKUP |
+|-----------|------------------------|
+| 3         | 10.000000              |
+| 1         | 15.666667              |
+| 2         | 24.200000              |
+
 3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
 ````sql
 WITH cte_pizzas AS (
@@ -219,27 +232,77 @@ FROM cte_pizzas
 GROUP BY no_pizzas_per_order;
 ````
 
+| NO_PIZZAS_PER_ORDER | AVG_TIME_TO_PREPARE |
+|---------------------|----------------------|
+| 3                   | 30.000000            |
+| 1                   | 12.200000            |
+| 2                   | 18.500000            |
+
+
 4. What was the average distance travelled for each customer?
 ````sql
 SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
 FROM customer_orders
 GROUP BY DAYNAME(order_time)
 ````
+| CUSTOMER_ID | AVG_DISTANCE   |
+|-------------|----------------|
+| 101         | 20             |
+| 102         | 16.333333333   |
+| 103         | 23             |
+| 104         | 10             |
+| 105         | 25             |
+
 5. What was the difference between the longest and shortest delivery times for all orders?
 ````sql
-SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
-FROM customer_orders
-GROUP BY DAYNAME(order_time)
+SELECT
+     MAX(REGEXP_REPLACE(duration, '[^0-9]', '')::int) AS max_time ,  
+     MIN(REGEXP_REPLACE(duration, '[^0-9]', '')::int) AS min_time,
+     MAX(REGEXP_REPLACE(duration, '[^0-9]', '')::int) - MIN(REGEXP_REPLACE(duration, '[^0-9]', '')::int) AS diff_between_min_and_max,
+FROM runner_orders
+WHERE duration <> 'null';
 ````
+| MAX_TIME | MIN_TIME | DIFF_BETWEEN_MIN_AND_MAX |
+|----------|----------|---------------------------|
+| 40       | 10       | 30                        |
+
 6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
 ````sql
-SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
-FROM customer_orders
-GROUP BY DAYNAME(order_time)
+SELECT 
+    runner_id, 
+    order_id, 
+    REPLACE(distance, 'km', '')::numeric(3,1) / REGEXP_REPLACE(duration, '[^0-9]', '')::numeric(3, 1) as average_speed 
+FROM runner_orders 
+WHERE duration <> 'null' 
+ORDER BY 
+    runner_id, 
+    order_id ;
 ````
+| RUNNER_ID | ORDER_ID | AVERAGE_SPEED |
+|-----------|----------|----------------|
+| 1         | 1        | 0.6250000       |
+| 1         | 2        | 0.7407407       |
+| 1         | 3        | 0.6700000       |
+| 1         | 10       | 1.0000000       |
+| 2         | 4        | 0.5850000       |
+| 2         | 7        | 1.0000000       |
+| 2         | 8        | 1.5600000       |
+| 3         | 5        | 0.6666667       |
+
 7. What is the successful delivery percentage for each runner?
 ````sql
-SELECT DAYNAME(order_time) AS day_of_week, count(order_id) AS orders
-FROM customer_orders
-GROUP BY DAYNAME(order_time)
+SELECT
+    runner_id,
+    SUM(CASE WHEN pickup_time= 'null' THEN 0 ELSE 1 END)
+    /
+    COUNT(ORDER_ID) as percent_of_orders_delivered
+FROM runner_orders
+GROUP BY runner_id;
 ````
+
+| RUNNER_ID | PERCENT_OF_ORDERS_DELIVERED |
+|-----------|------------------------------|
+| 1         | 1.000000                     |
+| 2         | 0.750000                     |
+| 3         | 0.500000                     |
+
